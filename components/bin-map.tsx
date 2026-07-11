@@ -76,6 +76,16 @@ function typeLabel(type: Bin["type"]) {
   return type === "recycling" ? "Recycling" : "Trash"
 }
 
+function directionsUrl(userLat: number, userLng: number, bin: Bin) {
+  const params = new URLSearchParams({
+    api: "1",
+    origin: `${userLat},${userLng}`,
+    destination: `${bin.lat},${bin.lng}`,
+    travelmode: "walking",
+  })
+  return `https://www.google.com/maps/dir/?${params.toString()}`
+}
+
 export default function BinMap({ userLat, userLng, radius, bins, focus }: BinMapProps) {
   return (
     <MapContainer
@@ -119,6 +129,14 @@ export default function BinMap({ userLat, userLng, radius, bins, focus }: BinMap
                 <span style={{ opacity: 0.7 }}>{bin.detail}</span>
               </>
             )}
+            <br />
+            <a
+              href={directionsUrl(userLat, userLng, bin)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Walking directions
+            </a>
           </Popup>
         </Marker>
       ))}

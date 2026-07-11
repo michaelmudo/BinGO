@@ -35,6 +35,16 @@ type Coords = { lat: number; lng: number }
 const RADIUS_OPTIONS = [500, 1000, 1500, 3000]
 const COMMUNITY_BINS_STORAGE_KEY = "bingo-community-bins"
 
+function directionsUrl(origin: Coords, destination: Bin) {
+  const params = new URLSearchParams({
+    api: "1",
+    origin: `${origin.lat},${origin.lng}`,
+    destination: `${destination.lat},${destination.lng}`,
+    travelmode: "walking",
+  })
+  return `https://www.google.com/maps/dir/?${params.toString()}`
+}
+
 // A few bin-dense spots so the app is testable when the browser blocks
 // geolocation (common inside preview iframes) or has no bins mapped nearby.
 const DEMO_LOCATIONS: { label: string; lat: number; lng: number }[] = [
@@ -174,10 +184,21 @@ export function BinFinder() {
     [enriched],
   )
 
-  const handleSelect = useCallback((bin: Bin) => {
-    setSelectedId(bin.id)
-    setFocus({ lat: bin.lat, lng: bin.lng, key: Date.now() })
-  }, [])
+  const handleSelect = useCallback(
+    (bin: Bin) => {
+      setSelectedId(bin.id)
+      setFocus({ lat: bin.lat, lng: bin.lng, key: Date.now() })
+
+      if (!coords) return
+      const shouldOpenDirections = window.confirm(
+        `Open walking directions to ${bin.name} in Google Maps?`,
+      )
+      if (shouldOpenDirections) {
+        window.open(directionsUrl(coords, bin), "_blank", "noopener,noreferrer")
+      }
+    },
+    [coords],
+  )
 
   const handleAddCommunityBin = useCallback(() => {
     if (!coords) return
