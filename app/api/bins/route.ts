@@ -1,12 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import type { Bin } from "@/lib/bins"
 
-// Mirror endpoints — we fall back through them if one is busy/down.
+// Mirror endpoints — we race all of them and take the first success.
 const OVERPASS_ENDPOINTS = [
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ]
+
+// Hard cap per mirror so a single slow server can't stall the whole request.
+const REQUEST_TIMEOUT_MS = 12_000
 
 // Overpass rejects/rate-limits requests without a descriptive User-Agent.
 const USER_AGENT = "BinGO/1.0 (nearest recycling & trash finder)"
@@ -22,7 +25,7 @@ interface OverpassElement {
 
 function buildQuery(lat: number, lng: number, radius: number): string {
   return `
-    [out:json][timeout:25];
+    [out:json][timeout:10];
     (
       nwr(around:${radius},${lat},${lng})["amenity"="waste_basket"];
       nwr(around:${radius},${lat},${lng})["amenity"="recycling"];
@@ -70,8 +73,9 @@ export async function GET(request: NextRequest) {
 
   const body = `data=${encodeURIComponent(buildQuery(lat, lng, radius))}`
 
-  let lastError = "Unknown error"
-  for (const endpoint of OVERPASS_ENDPOINTS) {
+  async function queryMirror(endpoint: string): Promise<OverpassElement[]> {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
     try {
       const res = await fetch(endpoint, {
         method: "POST",
@@ -80,22 +84,34 @@ export async function GET(request: NextRequest) {
           "User-Agent": USER_AGENT,
         },
         body,
+        signal: controller.signal,
         // Overpass data changes slowly; cache briefly to be a good citizen.
         next: { revalidate: 300 },
       })
-      if (!res.ok) {
-        lastError = `Overpass responded ${res.status}`
-        continue
-      }
+      if (!res.ok) throw new Error(`${endpoint} responded ${res.status}`)
       const data = (await res.json()) as { elements?: OverpassElement[] }
-      const bins = (data.elements ?? [])
-        .map(normalize)
-        .filter((b): b is Bin => b !== null)
-      return NextResponse.json({ bins })
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : "Fetch failed"
+      return data.elements ?? []
+    } finally {
+      clearTimeout(timer)
     }
   }
 
-  return NextResponse.json({ error: `Could not reach OpenStreetMap: ${lastError}` }, { status: 502 })
+  try {
+    // Race every mirror; the first one to succeed wins. Promise.any ignores
+    // rejections and only throws if ALL mirrors fail.
+    const elements = await Promise.any(OVERPASS_ENDPOINTS.map(queryMirror))
+    const bins = elements.map(normalize).filter((b): b is Bin => b !== null)
+    return NextResponse.json({ bins })
+  } catch (err) {
+    const detail =
+      err instanceof AggregateError
+        ? (err.errors[0] as Error)?.message ?? "all mirrors failed"
+        : err instanceof Error
+          ? err.message
+          : "unknown error"
+    return NextResponse.json(
+      { error: `Could not reach OpenStreetMap: ${detail}` },
+      { status: 502 },
+    )
+  }
 }

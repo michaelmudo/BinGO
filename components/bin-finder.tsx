@@ -22,6 +22,14 @@ type Coords = { lat: number; lng: number }
 
 const RADIUS_OPTIONS = [500, 1000, 1500, 3000]
 
+// A few bin-dense spots so the app is testable when the browser blocks
+// geolocation (common inside preview iframes) or has no bins mapped nearby.
+const DEMO_LOCATIONS: { label: string; lat: number; lng: number }[] = [
+  { label: "London", lat: 51.5115, lng: -0.1235 },
+  { label: "Amsterdam", lat: 52.3676, lng: 4.9041 },
+  { label: "Berlin", lat: 52.52, lng: 13.405 },
+]
+
 export function BinFinder() {
   const [coords, setCoords] = useState<Coords | null>(null)
   const [status, setStatus] = useState<"idle" | "locating" | "loading" | "ready" | "error">("idle")
@@ -32,22 +40,49 @@ export function BinFinder() {
   const [focus, setFocus] = useState<{ lat: number; lng: number; key: number } | null>(null)
   const [selectedId, setSelectedId] = useState<string>()
 
+  const useDemoLocation = useCallback((loc: { lat: number; lng: number }) => {
+    setError(null)
+    setCoords({ lat: loc.lat, lng: loc.lng })
+  }, [])
+
   const requestLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
       setStatus("error")
-      setError("Geolocation is not supported by this browser.")
+      setError("Geolocation isn't supported here. Try a demo location below.")
       return
     }
     setStatus("locating")
     setError(null)
+
+    // Watchdog: some environments (e.g. preview iframes) block geolocation and
+    // never fire either callback, leaving us stuck on "Locating you…". Bail out
+    // with a helpful message if nothing has resolved in time.
+    let settled = false
+    const watchdog = setTimeout(() => {
+      if (settled) return
+      settled = true
+      setStatus("error")
+      setError(
+        "Couldn't get your location (it may be blocked in this preview). Open the published app, or try a demo location below.",
+      )
+    }, 12000)
+
     navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (pos) => {
+        if (settled) return
+        settled = true
+        clearTimeout(watchdog)
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      },
       (err) => {
+        if (settled) return
+        settled = true
+        clearTimeout(watchdog)
         setStatus("error")
         setError(
           err.code === err.PERMISSION_DENIED
-            ? "Location permission denied. Enable it and try again."
-            : "Could not determine your location. Try again.",
+            ? "Location permission denied. Enable it and retry, or try a demo location below."
+            : "Could not determine your location. Retry, or try a demo location below.",
         )
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
@@ -136,6 +171,23 @@ export function BinFinder() {
           <LocateFixed className="size-4" />
           Use my location
         </Button>
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-xs text-muted-foreground">Or try a demo location</span>
+          <div className="flex flex-wrap justify-center gap-2">
+            {DEMO_LOCATIONS.map((loc) => (
+              <Button
+                key={loc.label}
+                variant="outline"
+                size="sm"
+                onClick={() => useDemoLocation(loc)}
+                className="gap-1.5"
+              >
+                <MapPin className="size-3.5" />
+                {loc.label}
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -153,11 +205,18 @@ export function BinFinder() {
             focus={focus}
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-muted">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <RefreshCw className="size-4 animate-spin" />
-              Locating you…
-            </div>
+          <div className="flex h-full items-center justify-center bg-muted px-6 text-center">
+            {status === "error" ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <TriangleAlert className="size-4" />
+                Location unavailable — pick a demo location.
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <RefreshCw className="size-4 animate-spin" />
+                Locating you…
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -226,10 +285,24 @@ export function BinFinder() {
             <TriangleAlert className="mt-0.5 size-4 shrink-0" />
             <div className="flex-1">
               <p>{error}</p>
-              <Button variant="outline" size="sm" onClick={requestLocation} className="mt-2 gap-1.5">
-                <RefreshCw className="size-3.5" />
-                Retry
-              </Button>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={requestLocation} className="gap-1.5">
+                  <RefreshCw className="size-3.5" />
+                  Retry
+                </Button>
+                {DEMO_LOCATIONS.map((loc) => (
+                  <Button
+                    key={loc.label}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => useDemoLocation(loc)}
+                    className="gap-1.5"
+                  >
+                    <MapPin className="size-3.5" />
+                    {loc.label}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         )}
