@@ -64,6 +64,17 @@ interface BinMapProps {
 
 const RECYCLE = "oklch(0.55 0.13 155)"
 const TRASH = "oklch(0.62 0.16 55)"
+const WATER = "oklch(0.58 0.16 235)"
+
+function markerColor(type: Bin["type"]) {
+  if (type === "water") return WATER
+  return type === "recycling" ? RECYCLE : TRASH
+}
+
+function typeLabel(type: Bin["type"]) {
+  if (type === "water") return "Water"
+  return type === "recycling" ? "Recycling" : "Trash"
+}
 
 export default function BinMap({ userLat, userLng, radius, bins, focus }: BinMapProps) {
   return (
@@ -94,12 +105,12 @@ export default function BinMap({ userLat, userLng, radius, bins, focus }: BinMap
         <Marker
           key={bin.id}
           position={[bin.lat, bin.lng]}
-          icon={pinIcon(bin.type === "recycling" ? RECYCLE : TRASH, bin.source === "community")}
+          icon={pinIcon(markerColor(bin.type), bin.source === "community")}
         >
           <Popup>
             <span className="font-semibold">{bin.name}</span>
             <br />
-            {bin.type === "recycling" ? "Recycling" : "Trash"}
+            {typeLabel(bin.type)}
             {bin.source === "community" && " - Community"}
             {bin.distance != null && <> - {formatDistance(bin.distance)} away</>}
             {bin.detail && (

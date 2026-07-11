@@ -1,4 +1,4 @@
-export type BinType = "recycling" | "trash"
+export type BinType = "recycling" | "trash" | "water"
 
 export interface Bin {
   id: string

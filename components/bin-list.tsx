@@ -1,6 +1,6 @@
 "use client"
 
-import { Navigation, Recycle, Trash2, X } from "lucide-react"
+import { Droplets, Navigation, Recycle, Trash2, X } from "lucide-react"
 import type { Bin } from "@/lib/bins"
 import { formatDistance } from "@/lib/bins"
 import { cn } from "@/lib/utils"
@@ -36,6 +36,7 @@ export function BinList({
     <ul className="flex flex-col divide-y divide-border">
       {bins.map((bin) => {
         const isRecycle = bin.type === "recycling"
+        const isWater = bin.type === "water"
         const isCommunity = bin.source === "community"
         return (
           <li key={bin.id}>
@@ -53,18 +54,26 @@ export function BinList({
                 <span
                   className={cn(
                     "flex size-10 shrink-0 items-center justify-center rounded-full",
-                    isRecycle
+                    isWater
+                      ? "bg-water/15 text-water"
+                      : isRecycle
                       ? "bg-recycle/15 text-recycle"
                       : "bg-trash/15 text-trash",
                   )}
                 >
-                  {isRecycle ? <Recycle className="size-5" /> : <Trash2 className="size-5" />}
+                  {isWater ? (
+                    <Droplets className="size-5" />
+                  ) : isRecycle ? (
+                    <Recycle className="size-5" />
+                  ) : (
+                    <Trash2 className="size-5" />
+                  )}
                 </span>
 
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-sm font-medium">{bin.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {isRecycle ? "Recycling" : "Trash"}
+                    {isWater ? "Water" : isRecycle ? "Recycling" : "Trash"}
                     {isCommunity ? " - Community" : ""}
                     {bin.detail ? ` - ${bin.detail}` : ""}
                   </span>

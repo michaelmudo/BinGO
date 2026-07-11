@@ -12,7 +12,7 @@ const OVERPASS_ENDPOINTS = [
 const REQUEST_TIMEOUT_MS = 12_000
 
 // Overpass rejects/rate-limits requests without a descriptive User-Agent.
-const USER_AGENT = "BinGO/1.0 (nearest recycling & trash finder)"
+const USER_AGENT = "BinGO/1.0 (nearest bins and water finder)"
 
 interface OverpassElement {
   type: "node" | "way" | "relation"
@@ -29,6 +29,8 @@ function buildQuery(lat: number, lng: number, radius: number): string {
     (
       nwr(around:${radius},${lat},${lng})["amenity"="waste_basket"];
       nwr(around:${radius},${lat},${lng})["amenity"="recycling"];
+      nwr(around:${radius},${lat},${lng})["amenity"="drinking_water"];
+      nwr(around:${radius},${lat},${lng})["man_made"="water_tap"];
     );
     out center tags;
   `
@@ -41,6 +43,7 @@ function normalize(el: OverpassElement): Bin | null {
 
   const tags = el.tags ?? {}
   const isRecycling = tags.amenity === "recycling"
+  const isWater = tags.amenity === "drinking_water" || tags.man_made === "water_tap"
 
   let detail: string | undefined
   if (isRecycling) {
@@ -49,14 +52,17 @@ function normalize(el: OverpassElement): Bin | null {
       .map((k) => k.replace("recycling:", "").replace(/_/g, " "))
     if (materials.length) detail = materials.slice(0, 4).join(", ")
     else if (tags.recycling_type) detail = `${tags.recycling_type} point`
+  } else if (isWater) {
+    if (tags.bottle === "yes") detail = "Bottle refill"
+    else if (tags.fountain === "yes") detail = "Fountain"
   }
 
   return {
     id: `${el.type}/${el.id}`,
-    type: isRecycling ? "recycling" : "trash",
+    type: isWater ? "water" : isRecycling ? "recycling" : "trash",
     lat,
     lng,
-    name: tags.name || (isRecycling ? "Recycling point" : "Trash can"),
+    name: tags.name || (isWater ? "Water fountain" : isRecycling ? "Recycling point" : "Trash can"),
     source: "osm",
     detail,
   }

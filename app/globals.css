@@ -40,6 +40,8 @@
   --color-recycle-foreground: var(--recycle-foreground);
   --color-trash: var(--trash);
   --color-trash-foreground: var(--trash-foreground);
+  --color-water: var(--water);
+  --color-water-foreground: var(--water-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -73,6 +75,8 @@
   --recycle-foreground: oklch(0.99 0.01 145);
   --trash: oklch(0.62 0.16 55);
   --trash-foreground: oklch(0.99 0.01 90);
+  --water: oklch(0.58 0.16 235);
+  --water-foreground: oklch(0.99 0.01 235);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -113,6 +117,8 @@
   --recycle-foreground: oklch(0.18 0.02 155);
   --trash: oklch(0.72 0.15 60);
   --trash-foreground: oklch(0.18 0.02 90);
+  --water: oklch(0.74 0.14 235);
+  --water-foreground: oklch(0.18 0.02 235);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import {
   ArrowLeft,
   Check,
+  Droplets,
   LocateFixed,
   MapPin,
   Plus,
@@ -28,7 +29,7 @@ const BinMap = dynamic(() => import("@/components/bin-map"), {
   ),
 })
 
-type Filter = "both" | "recycling" | "trash"
+type Filter = "both" | BinType
 type Coords = { lat: number; lng: number }
 
 const RADIUS_OPTIONS = [500, 1000, 1500, 3000]
@@ -65,7 +66,7 @@ export function BinFinder() {
         parsed.filter(
           (bin) =>
             bin.source === "community" &&
-            (bin.type === "trash" || bin.type === "recycling") &&
+            (bin.type === "trash" || bin.type === "recycling" || bin.type === "water") &&
             Number.isFinite(bin.lat) &&
             Number.isFinite(bin.lng),
         ),
@@ -186,7 +187,12 @@ export function BinFinder() {
       type: newBinType,
       lat: coords.lat,
       lng: coords.lng,
-      name: newBinType === "recycling" ? "Community recycling point" : "Community trash can",
+      name:
+        newBinType === "water"
+          ? "Community water fountain"
+          : newBinType === "recycling"
+            ? "Community recycling point"
+            : "Community trash can",
       source: "community",
       detail: newBinNote.trim() || undefined,
       createdAt: new Date().toISOString(),
@@ -224,6 +230,7 @@ export function BinFinder() {
     () => ({
       recycling: enriched.filter((b) => b.type === "recycling").length,
       trash: enriched.filter((b) => b.type === "trash").length,
+      water: enriched.filter((b) => b.type === "water").length,
     }),
     [enriched],
   )
@@ -239,14 +246,17 @@ export function BinFinder() {
           <span className="flex size-14 items-center justify-center rounded-2xl bg-trash/15 text-trash">
             <Trash2 className="size-7" />
           </span>
+          <span className="flex size-14 items-center justify-center rounded-2xl bg-water/15 text-water">
+            <Droplets className="size-7" />
+          </span>
         </div>
         <div className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight text-balance">
             Find the nearest bin, fast
           </h2>
           <p className="max-w-sm text-sm text-muted-foreground text-pretty">
-            Share your location and we&apos;ll scan OpenStreetMap for the closest recycling points
-            and trash cans around you.
+            Share your location and we&apos;ll scan OpenStreetMap for the closest recycling points,
+            trash cans, and water fountains around you.
           </p>
         </div>
         <Button size="lg" onClick={requestLocation} className="gap-2">
@@ -316,19 +326,21 @@ export function BinFinder() {
         </div>
 
         {/* Nearest summary */}
-        <div className="grid grid-cols-2 gap-3 p-4">
+        <div className="grid grid-cols-3 gap-2 p-4">
           <NearestCard bin={nearest("recycling")} type="recycling" onClick={handleSelect} />
           <NearestCard bin={nearest("trash")} type="trash" onClick={handleSelect} />
+          <NearestCard bin={nearest("water")} type="water" onClick={handleSelect} />
         </div>
 
         {/* Controls */}
         <div className="flex flex-col gap-3 border-t px-4 py-3">
-          <div className="flex gap-1 rounded-lg bg-muted p-1">
+          <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:grid-cols-4">
             {(
               [
                 { key: "both", label: "All" },
                 { key: "recycling", label: `Recycling (${counts.recycling})` },
                 { key: "trash", label: `Trash (${counts.trash})` },
+                { key: "water", label: `Water (${counts.water})` },
               ] as { key: Filter; label: string }[]
             ).map((opt) => (
               <button
@@ -336,7 +348,7 @@ export function BinFinder() {
                 type="button"
                 onClick={() => setFilter(opt.key)}
                 className={cn(
-                  "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                  "rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
                   filter === opt.key
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
@@ -460,6 +472,7 @@ function AddBinPanel({
           [
             { type: "trash", label: "Trash", icon: Trash2 },
             { type: "recycling", label: "Recycling", icon: Recycle },
+            { type: "water", label: "Water", icon: Droplets },
           ] as const
         ).map((option) => {
           const Icon = option.icon
@@ -512,6 +525,7 @@ function NearestCard({
   onClick: (bin: Bin) => void
 }) {
   const isRecycle = type === "recycling"
+  const isWater = type === "water"
   return (
     <button
       type="button"
@@ -525,11 +539,17 @@ function NearestCard({
       <span
         className={cn(
           "flex items-center gap-1.5 text-xs font-medium",
-          isRecycle ? "text-recycle" : "text-trash",
+          isWater ? "text-water" : isRecycle ? "text-recycle" : "text-trash",
         )}
       >
-        {isRecycle ? <Recycle className="size-3.5" /> : <Trash2 className="size-3.5" />}
-        Nearest {isRecycle ? "recycling" : "trash"}
+        {isWater ? (
+          <Droplets className="size-3.5" />
+        ) : isRecycle ? (
+          <Recycle className="size-3.5" />
+        ) : (
+          <Trash2 className="size-3.5" />
+        )}
+        {isWater ? "Water" : isRecycle ? "Recycling" : "Trash"}
       </span>
       <span className="text-lg font-bold tabular-nums">
         {bin?.distance != null ? formatDistance(bin.distance) : "-"}

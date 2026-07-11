@@ -10,7 +10,7 @@ export default function Page() {
         </span>
         <div className="flex flex-col leading-tight">
           <h1 className="text-sm font-bold tracking-tight">BinGO</h1>
-          <p className="text-xs text-muted-foreground">Nearest recycling &amp; trash</p>
+          <p className="text-xs text-muted-foreground">Bins, recycling &amp; water</p>
         </div>
       </header>
       <BinFinder />

@@ -3,9 +3,9 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'BinGO - Nearest Recycling & Trash',
+  title: 'BinGO - Nearest Bins, Recycling & Water',
   description:
-    'Share your location to instantly find the closest recycling points and trash cans near you, powered by OpenStreetMap.',
+    'Share your location to instantly find nearby trash cans, recycling points, and water fountains, powered by OpenStreetMap.',
   generator: 'v0.app',
   icons: {
     icon: [
