@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import {
+  ArrowLeft,
   Check,
   LocateFixed,
   MapPin,
@@ -206,6 +207,19 @@ export function BinFinder() {
     [communityBins, saveCommunityBins, selectedId],
   )
 
+  const handleBackToStart = useCallback(() => {
+    setCoords(null)
+    setStatus("idle")
+    setError(null)
+    setBins([])
+    setFilter("both")
+    setRadius(1500)
+    setFocus(null)
+    setSelectedId(undefined)
+    setIsAdding(false)
+    setNewBinNote("")
+  }, [])
+
   const counts = useMemo(
     () => ({
       recycling: enriched.filter((b) => b.type === "recycling").length,
@@ -291,6 +305,16 @@ export function BinFinder() {
 
       {/* Sidebar */}
       <aside className="flex min-h-0 flex-1 flex-col border-t bg-card lg:max-w-md lg:border-l lg:border-t-0">
+        <div className="flex items-center justify-between gap-3 p-4 pb-0">
+          <Button variant="ghost" size="sm" onClick={handleBackToStart} className="gap-1.5">
+            <ArrowLeft className="size-3.5" />
+            Back
+          </Button>
+          <span className="truncate text-xs text-muted-foreground">
+            {status === "loading" ? "Scanning nearby..." : `${filtered.length} nearby`}
+          </span>
+        </div>
+
         {/* Nearest summary */}
         <div className="grid grid-cols-2 gap-3 p-4">
           <NearestCard bin={nearest("recycling")} type="recycling" onClick={handleSelect} />
