@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import type { Bin } from "@/lib/bins"
 
-// Mirror endpoints — we race all of them and take the first success.
+// Mirror endpoints - we race all of them and take the first success.
 const OVERPASS_ENDPOINTS = [
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
   "https://overpass-api.de/api/interpreter",
@@ -57,6 +57,7 @@ function normalize(el: OverpassElement): Bin | null {
     lat,
     lng,
     name: tags.name || (isRecycling ? "Recycling point" : "Trash can"),
+    source: "osm",
     detail,
   }
 }

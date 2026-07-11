@@ -6,6 +6,8 @@ export interface Bin {
   lat: number
   lng: number
   name: string
+  source?: "osm" | "community"
+  createdAt?: string
   /** Extra descriptor, e.g. recycling material or vending type */
   detail?: string
   /** Straight-line distance from the user in meters, filled in client-side */

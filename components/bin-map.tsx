@@ -94,13 +94,14 @@ export default function BinMap({ userLat, userLng, radius, bins, focus }: BinMap
         <Marker
           key={bin.id}
           position={[bin.lat, bin.lng]}
-          icon={pinIcon(bin.type === "recycling" ? RECYCLE : TRASH)}
+          icon={pinIcon(bin.type === "recycling" ? RECYCLE : TRASH, bin.source === "community")}
         >
           <Popup>
             <span className="font-semibold">{bin.name}</span>
             <br />
             {bin.type === "recycling" ? "Recycling" : "Trash"}
-            {bin.distance != null && <> · {formatDistance(bin.distance)} away</>}
+            {bin.source === "community" && " - Community"}
+            {bin.distance != null && <> - {formatDistance(bin.distance)} away</>}
             {bin.detail && (
               <>
                 <br />

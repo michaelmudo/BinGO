@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
-import { Recycle, Trash2, MapPin, LocateFixed, RefreshCw, TriangleAlert } from "lucide-react"
+import {
+  Check,
+  LocateFixed,
+  MapPin,
+  Plus,
+  Recycle,
+  RefreshCw,
+  Trash2,
+  TriangleAlert,
+  X,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BinList } from "@/components/bin-list"
 import { type Bin, type BinType, haversine, bearing, formatDistance } from "@/lib/bins"
@@ -21,6 +31,7 @@ type Filter = "both" | "recycling" | "trash"
 type Coords = { lat: number; lng: number }
 
 const RADIUS_OPTIONS = [500, 1000, 1500, 3000]
+const COMMUNITY_BINS_STORAGE_KEY = "bingo-community-bins"
 
 // A few bin-dense spots so the app is testable when the browser blocks
 // geolocation (common inside preview iframes) or has no bins mapped nearby.
@@ -35,10 +46,38 @@ export function BinFinder() {
   const [status, setStatus] = useState<"idle" | "locating" | "loading" | "ready" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
   const [bins, setBins] = useState<Bin[]>([])
+  const [communityBins, setCommunityBins] = useState<Bin[]>([])
   const [filter, setFilter] = useState<Filter>("both")
   const [radius, setRadius] = useState(1500)
   const [focus, setFocus] = useState<{ lat: number; lng: number; key: number } | null>(null)
   const [selectedId, setSelectedId] = useState<string>()
+  const [isAdding, setIsAdding] = useState(false)
+  const [newBinType, setNewBinType] = useState<BinType>("trash")
+  const [newBinNote, setNewBinNote] = useState("")
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(COMMUNITY_BINS_STORAGE_KEY)
+      if (!saved) return
+      const parsed = JSON.parse(saved) as Bin[]
+      setCommunityBins(
+        parsed.filter(
+          (bin) =>
+            bin.source === "community" &&
+            (bin.type === "trash" || bin.type === "recycling") &&
+            Number.isFinite(bin.lat) &&
+            Number.isFinite(bin.lng),
+        ),
+      )
+    } catch {
+      window.localStorage.removeItem(COMMUNITY_BINS_STORAGE_KEY)
+    }
+  }, [])
+
+  const saveCommunityBins = useCallback((nextBins: Bin[]) => {
+    setCommunityBins(nextBins)
+    window.localStorage.setItem(COMMUNITY_BINS_STORAGE_KEY, JSON.stringify(nextBins))
+  }, [])
 
   const useDemoLocation = useCallback((loc: { lat: number; lng: number }) => {
     setError(null)
@@ -55,7 +94,7 @@ export function BinFinder() {
     setError(null)
 
     // Watchdog: some environments (e.g. preview iframes) block geolocation and
-    // never fire either callback, leaving us stuck on "Locating you…". Bail out
+    // never fire either callback, leaving us stuck on "Locating you...". Bail out
     // with a helpful message if nothing has resolved in time.
     let settled = false
     const watchdog = setTimeout(() => {
@@ -111,10 +150,10 @@ export function BinFinder() {
   // Enrich bins with distance + bearing, sorted nearest-first.
   const enriched = useMemo(() => {
     if (!coords) return []
-    return bins
+    return [...bins, ...communityBins]
       .map((b) => ({ ...b, distance: haversine(coords.lat, coords.lng, b.lat, b.lng) }))
       .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
-  }, [bins, coords])
+  }, [bins, communityBins, coords])
 
   const bearings = useMemo(() => {
     if (!coords) return {}
@@ -137,6 +176,35 @@ export function BinFinder() {
     setSelectedId(bin.id)
     setFocus({ lat: bin.lat, lng: bin.lng, key: Date.now() })
   }, [])
+
+  const handleAddCommunityBin = useCallback(() => {
+    if (!coords) return
+
+    const bin: Bin = {
+      id: `community/${Date.now()}`,
+      type: newBinType,
+      lat: coords.lat,
+      lng: coords.lng,
+      name: newBinType === "recycling" ? "Community recycling point" : "Community trash can",
+      source: "community",
+      detail: newBinNote.trim() || undefined,
+      createdAt: new Date().toISOString(),
+    }
+
+    saveCommunityBins([bin, ...communityBins])
+    setNewBinNote("")
+    setIsAdding(false)
+    setSelectedId(bin.id)
+    setFocus({ lat: bin.lat, lng: bin.lng, key: Date.now() })
+  }, [communityBins, coords, newBinNote, newBinType, saveCommunityBins])
+
+  const handleDeleteCommunityBin = useCallback(
+    (bin: Bin) => {
+      saveCommunityBins(communityBins.filter((saved) => saved.id !== bin.id))
+      if (selectedId === bin.id) setSelectedId(undefined)
+    },
+    [communityBins, saveCommunityBins, selectedId],
+  )
 
   const counts = useMemo(
     () => ({
@@ -209,12 +277,12 @@ export function BinFinder() {
             {status === "error" ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <TriangleAlert className="size-4" />
-                Location unavailable — pick a demo location.
+                Location unavailable - pick a demo location.
               </div>
             ) : (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <RefreshCw className="size-4 animate-spin" />
-                Locating you…
+                Locating you...
               </div>
             )}
           </div>
@@ -277,7 +345,26 @@ export function BinFinder() {
               ))}
             </div>
           </div>
+          <Button
+            type="button"
+            variant={isAdding ? "secondary" : "outline"}
+            onClick={() => setIsAdding((open) => !open)}
+            className="w-full gap-2"
+          >
+            {isAdding ? <X className="size-4" /> : <Plus className="size-4" />}
+            {isAdding ? "Cancel add" : "Add bin here"}
+          </Button>
         </div>
+
+        {isAdding && coords && (
+          <AddBinPanel
+            type={newBinType}
+            note={newBinNote}
+            onTypeChange={setNewBinType}
+            onNoteChange={setNewBinNote}
+            onSave={handleAddCommunityBin}
+          />
+        )}
 
         {/* Error */}
         {status === "error" && (
@@ -312,7 +399,7 @@ export function BinFinder() {
           {status === "loading" ? (
             <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
               <RefreshCw className="size-4 animate-spin" />
-              Scanning nearby…
+              Scanning nearby...
             </div>
           ) : (
             <BinList
@@ -320,10 +407,73 @@ export function BinFinder() {
               bearings={bearings}
               onSelect={handleSelect}
               selectedId={selectedId}
+              onDeleteCommunityBin={handleDeleteCommunityBin}
             />
           )}
         </div>
       </aside>
+    </div>
+  )
+}
+
+function AddBinPanel({
+  type,
+  note,
+  onTypeChange,
+  onNoteChange,
+  onSave,
+}: {
+  type: BinType
+  note: string
+  onTypeChange: (type: BinType) => void
+  onNoteChange: (note: string) => void
+  onSave: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-3 border-t bg-muted/40 px-4 py-3">
+      <div className="flex gap-1 rounded-lg bg-background p-1">
+        {(
+          [
+            { type: "trash", label: "Trash", icon: Trash2 },
+            { type: "recycling", label: "Recycling", icon: Recycle },
+          ] as const
+        ).map((option) => {
+          const Icon = option.icon
+          const active = type === option.type
+          return (
+            <button
+              key={option.type}
+              type="button"
+              onClick={() => onTypeChange(option.type)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                active
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="size-3.5" />
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+
+      <label className="flex flex-col gap-1.5 text-xs font-medium">
+        Note
+        <input
+          value={note}
+          onChange={(event) => onNoteChange(event.target.value)}
+          placeholder="Near the entrance, accepts bottles..."
+          maxLength={80}
+          className="h-9 rounded-md border bg-background px-3 text-sm font-normal outline-none transition-shadow focus-visible:ring-3 focus-visible:ring-ring/50"
+        />
+      </label>
+
+      <Button type="button" onClick={onSave} className="w-full gap-2">
+        <Check className="size-4" />
+        Save community bin
+      </Button>
     </div>
   )
 }
@@ -358,7 +508,7 @@ function NearestCard({
         Nearest {isRecycle ? "recycling" : "trash"}
       </span>
       <span className="text-lg font-bold tabular-nums">
-        {bin?.distance != null ? formatDistance(bin.distance) : "—"}
+        {bin?.distance != null ? formatDistance(bin.distance) : "-"}
       </span>
       <span className="truncate text-xs text-muted-foreground">
         {bin ? bin.name : "None in range"}
