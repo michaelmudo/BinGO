@@ -5,7 +5,11 @@ import type { Bin } from "@/lib/bins"
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ]
+
+// Overpass rejects/rate-limits requests without a descriptive User-Agent.
+const USER_AGENT = "BinGO/1.0 (nearest recycling & trash finder)"
 
 interface OverpassElement {
   type: "node" | "way" | "relation"
@@ -71,7 +75,10 @@ export async function GET(request: NextRequest) {
     try {
       const res = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": USER_AGENT,
+        },
         body,
         // Overpass data changes slowly; cache briefly to be a good citizen.
         next: { revalidate: 300 },
