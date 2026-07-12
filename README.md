@@ -20,6 +20,14 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+To enable the AI sorting helper, create `.env.local` and add:
+
+```bash
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+The AI helper supports text descriptions and optional item photos from the camera or file picker.
+
 Location sharing works best from `localhost` or a deployed HTTPS URL. If your browser blocks location in a preview frame, use one of the demo locations on the first screen.
 
 ## Deploy

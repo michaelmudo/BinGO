@@ -1,5 +1,6 @@
 import { Leaf } from "lucide-react"
 import { BinFinder } from "@/components/bin-finder"
+import { SortAdvisor } from "@/components/sort-advisor"
 
 export default function Page() {
   return (
@@ -13,6 +14,7 @@ export default function Page() {
           <p className="text-xs text-muted-foreground">Bins, recycling &amp; water</p>
         </div>
       </header>
+      <SortAdvisor />
       <BinFinder />
     </main>
   )
