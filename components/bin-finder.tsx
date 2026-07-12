@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { type CSSProperties, type PointerEvent, useCallback, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import {
   ArrowLeft,
@@ -66,6 +66,7 @@ export function BinFinder() {
   const [isAdding, setIsAdding] = useState(false)
   const [newBinType, setNewBinType] = useState<BinType>("trash")
   const [newBinNote, setNewBinNote] = useState("")
+  const [sheetHeight, setSheetHeight] = useState(48)
 
   useEffect(() => {
     try {
@@ -247,6 +248,28 @@ export function BinFinder() {
     setNewBinNote("")
   }, [])
 
+  const handleSheetDrag = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (window.innerWidth >= 1024) return
+
+    const startY = event.clientY
+    const startHeight = sheetHeight
+    event.currentTarget.setPointerCapture(event.pointerId)
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const delta = startY - moveEvent.clientY
+      const nextHeight = startHeight + (delta / window.innerHeight) * 100
+      setSheetHeight(Math.min(82, Math.max(34, nextHeight)))
+    }
+
+    const handlePointerUp = () => {
+      window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("pointerup", handlePointerUp)
+    }
+
+    window.addEventListener("pointermove", handlePointerMove)
+    window.addEventListener("pointerup", handlePointerUp)
+  }, [sheetHeight])
+
   const counts = useMemo(
     () => ({
       recycling: enriched.filter((b) => b.type === "recycling").length,
@@ -306,9 +329,9 @@ export function BinFinder() {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
+    <div className="relative flex-1 overflow-hidden lg:flex lg:flex-row">
       {/* Map */}
-      <div className="relative h-64 shrink-0 sm:h-80 lg:h-auto lg:flex-1">
+      <div className="absolute inset-0 lg:relative lg:h-auto lg:flex-1">
         {coords ? (
           <BinMap
             userLat={coords.lat}
@@ -335,8 +358,18 @@ export function BinFinder() {
       </div>
 
       {/* Sidebar */}
-      <aside className="flex min-h-0 flex-1 flex-col border-t bg-card lg:max-w-md lg:border-l lg:border-t-0">
-        <div className="flex items-center justify-between gap-3 p-4 pb-0">
+      <aside
+        className="absolute inset-x-0 bottom-0 z-[500] flex h-[var(--sheet-height)] min-h-0 flex-col overflow-hidden rounded-t-2xl border-t bg-card shadow-2xl lg:static lg:z-auto lg:h-auto lg:max-w-md lg:flex-1 lg:rounded-none lg:border-l lg:border-t-0 lg:shadow-none"
+        style={{ "--sheet-height": `${sheetHeight}dvh` } as CSSProperties}
+      >
+        <div
+          className="flex cursor-grab touch-none flex-col gap-2 px-4 pt-2 active:cursor-grabbing lg:cursor-auto lg:touch-auto"
+          onPointerDown={handleSheetDrag}
+        >
+          <div className="mx-auto h-1.5 w-12 rounded-full bg-muted-foreground/30 lg:hidden" />
+        </div>
+
+        <div className="flex items-center justify-between gap-3 px-4 pb-0 pt-1 lg:pt-4">
           <Button variant="ghost" size="sm" onClick={handleBackToStart} className="gap-1.5">
             <ArrowLeft className="size-3.5" />
             Back
